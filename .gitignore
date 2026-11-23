@@ -5,3 +5,4 @@ node_modules/
 # Se genera con launcher/build.ps1
 KekeClipper.exe
 launcher/app.ico
+dist/
