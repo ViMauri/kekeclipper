@@ -1,0 +1,7 @@
+# Datos personales: sesión de Twitch, claves, modelos y análisis. NUNCA subir.
+data/
+node_modules/
+*.log
+# Se genera con launcher/build.ps1
+KekeClipper.exe
+launcher/app.ico
