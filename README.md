@@ -2,6 +2,38 @@
 
 App de Windows que se conecta a tu Twitch, escucha tus directos completos, encuentra los momentos más graciosos (humor latino: Argentina, Uruguay, Perú, Chile, México…) y los convierte en **Shorts 9:16** con subtítulos. También arma el **resumen del directo** para YouTube (máximo 10 minutos).
 
+## Capturas
+
+![KekeClipper](docs/img/01_portada.jpg)
+
+**1. Verificación de complementos al abrir**
+
+![Verificación de complementos al abrir](docs/img/02_verificacion.jpg)
+
+**2. Login con Twitch**
+
+![Login con Twitch](docs/img/03_login.jpg)
+
+**3. Tus directos**
+
+![Tus directos](docs/img/04_directos.jpg)
+
+**4. Análisis y línea de tiempo de risas**
+
+![Análisis y línea de tiempo de risas](docs/img/05_analisis.jpg)
+
+**5. Boceto 9:16, título y subtítulos**
+
+![Boceto 9:16, título y subtítulos](docs/img/06_boceto.jpg)
+
+**6. Editor de subtítulos**
+
+![Editor de subtítulos](docs/img/07_subtitulos.jpg)
+
+**7. Resumen para YouTube con capítulos**
+
+![Resumen para YouTube con capítulos](docs/img/08_resumen.jpg)
+
 ## Cómo arrancar
 1. Doble clic en **`KekeClipper.exe`**. Se abre como una app normal de Windows (ventana propia, ícono en la barra de tareas).
    - Si falta **Node.js**, la app ofrece instalarlo. La primera vez prepara sus componentes (1-2 min).
