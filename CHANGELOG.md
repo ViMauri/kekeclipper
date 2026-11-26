@@ -12,7 +12,7 @@
 - El boceto del teléfono muestra el encuadre al instante y el video sale igual (la imagen nunca se deforma).
 
 ## Actualizar desde v1.0.0
-Cerrá KekeClipper y descomprimí el zip nuevo **en el mismo lugar donde está tu carpeta KekeClipper**, aceptando reemplazar los archivos. Tu carpeta data (sesión de Twitch, análisis y modelos) no se toca.
+Seguí los pasos de [docs/INSTALAR.md](docs/INSTALAR.md): descomprimí el zip en la carpeta que **contiene** tu carpeta KekeClipper y reemplazá los archivos. Tu carpeta data no se toca.
 
 ---
 

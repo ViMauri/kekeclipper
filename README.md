@@ -39,6 +39,8 @@ App de Windows que se conecta a tu Twitch, escucha tus directos completos, encue
 ![Resumen para YouTube con capítulos](docs/img/08_resumen.jpg)
 
 ## Cómo arrancar
+> **¿Actualizando desde otra versión?** Seguí [docs/INSTALAR.md](docs/INSTALAR.md) para no perder tu sesión ni tus análisis.
+
 1. Doble clic en **`KekeClipper.exe`**. Se abre como una app normal de Windows (ventana propia, ícono en la barra de tareas).
    - Si falta **Node.js**, la app ofrece instalarlo. La primera vez prepara sus componentes (1-2 min).
 2. **Verificación**: al abrir, revisa que esté todo instalado — FFmpeg, Ollama (IA local gratis), el modelo de humor y el de voz. Si falta algo, tocá **Instalar** o **Instalar todo lo que falta** (usa `winget`, el instalador de Windows).
