@@ -26,6 +26,10 @@ App de Windows que se conecta a tu Twitch, escucha tus directos completos, encue
 
 ![Boceto 9:16, título y subtítulos](docs/img/06_boceto.jpg)
 
+**Ajustar cámara y encuadre**
+
+![Ajustar cámara y encuadre](docs/img/09_encuadre.jpg)
+
 **6. Editor de subtítulos**
 
 ![Editor de subtítulos](docs/img/07_subtitulos.jpg)

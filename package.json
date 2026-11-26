@@ -1,6 +1,6 @@
 {
   "name": "kekeclipper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "App local: analiza tus VODs de Twitch, detecta los momentos más graciosos (humor latino) y genera Shorts + resúmenes para YouTube.",
   "type": "module",
   "main": "server.js",

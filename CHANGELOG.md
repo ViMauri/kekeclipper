@@ -1,3 +1,21 @@
+# KekeClipper v1.1.0
+
+## Novedades
+- **📐 Ajustar cámara y encuadre** en cada clip, a mano, sobre un fotograma real del clip:
+  - **Facecam + juego**: recuadro rojo = tu cámara (arriba), blanco = el juego (abajo). Elegís cuánto alto ocupa la cámara en el Short.
+  - **Recorte** y **Fondo desenfocado**: el recuadro es lo que se ve; achicalo para hacer zoom.
+  - Arrastrar para mover, esquina para agrandar o achicar, flechas del teclado para el ajuste fino.
+  - Botones **↔ / ↕ Centrar**, **＋ / － Zoom**, **Sin zoom** y **Restablecer**.
+  - **📌 Usar esta cámara en todos los clips** y **🔄 Otro fotograma** si la cámara no se ve en uno.
+![Ajustar cámara y encuadre](docs/img/09_encuadre.jpg)
+
+- El boceto del teléfono muestra el encuadre al instante y el video sale igual (la imagen nunca se deforma).
+
+## Actualizar desde v1.0.0
+Cerrá KekeClipper y descomprimí el zip nuevo **en el mismo lugar donde está tu carpeta KekeClipper**, aceptando reemplazar los archivos. Tu carpeta data (sesión de Twitch, análisis y modelos) no se toca.
+
+---
+
 # KekeClipper v1.0.0
 
 Primera versión. Encuentra los momentos más graciosos de tus directos de Twitch y los convierte en Shorts.
