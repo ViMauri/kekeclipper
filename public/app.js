@@ -1,4 +1,5 @@
 // UI de KekeClipper (sin frameworks)
+import { normalizeFrame, fitRect, fullRect, zoneAspect, SRC_AR } from "/framing.js";
 const $ = (s, el = document) => el.querySelector(s);
 const view = $("#view");
 let status = null;
@@ -339,7 +340,7 @@ function momentCard(vodId, m) {
   const phone = $(".phone", el);
   const set = (cls, v) => { $(cls, el).value = v; };
   set(".f-titulo", m.titulo || ""); set(".f-gancho", m.gancho || ""); set(".f-descripcion", m.descripcion || "");
-  set(".f-start", fmt(m.start)); set(".f-end", fmt(m.end)); set(".f-layout", m.layout || "blur"); set(".f-cropX", m.cropX ?? 0.5);
+  set(".f-start", fmt(m.start)); set(".f-end", fmt(m.end)); set(".f-layout", m.layout || "blur");
   $(".f-selected", el).checked = m.selected;
   el.classList.toggle("is-selected", m.selected);
   const sc = $(".score", el); sc.textContent = m.score.toFixed(1); sc.classList.toggle("hot", m.score >= 8);
@@ -351,7 +352,9 @@ function momentCard(vodId, m) {
   $(".tags", el).onclick = (e) => { if (e.target.classList.contains("chip")) copy(e.target.textContent); };
 
   // ----- Título y subtítulos (opcionales, editables, se arrastran en el boceto) -----
-  const defaultSubY = (layout) => (layout === "facecam" ? 1160 : layout === "crop" ? 1350 : 1480);
+  // Encuadre del clip (cámara, juego, zoom). Mismo cálculo que el render: src/framing.js
+  let fr = normalizeFrame(m.frame, { facecam: status.config.facecam, cropX: m.cropX ?? 0.5 });
+  const defaultSubY = (layout) => (layout === "facecam" ? fr.camH + 460 : layout === "crop" ? 1350 : 1480);
   const tx = { subY: m.subY ?? null, hookY: m.hookY ?? 250, subs: m.subs || null };
   $(".f-hookOn", el).checked = m.hookOn !== false;
   $(".f-hookDur", el).value = String(m.hookDur ?? 4);
@@ -381,28 +384,144 @@ function momentCard(vodId, m) {
     const s = parseT($(".f-start", el).value), e = parseT($(".f-end", el).value);
     $(".dur", el).textContent = `${Math.max(0, e - s)} s`;
     phone.dataset.layout = $(".f-layout", el).value;
-    $(".cropx", el).classList.toggle("hidden", phone.dataset.layout === "blur");
-    if ($(".stage", el).dataset.loaded) layoutStage();
+    layoutStage();
+    drawFramer();
   };
 
-  // Boceto: el reproductor oficial de Twitch, encuadrado como quedaría el Short
+  // Boceto: cada zona del 9:16 muestra su recorte del video (reproductor de Twitch en vivo,
+  // o el fotograma del editor de encuadre si todavía no tocaste "Ver boceto").
+  let picUrl = null;
   const layoutStage = () => {
     const stage = $(".stage", el);
-    const layout = $(".f-layout", el).value, cx = +$(".f-cropX", el).value;
+    const layout = $(".f-layout", el).value;
+    const live = !!stage.dataset.loaded;
+    if (!live && !picUrl) { stage.innerHTML = ""; stage.dataset.key = ""; return; }
     const t = parseT($(".f-start", el).value);
-    const src = `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}&time=${Math.floor(t / 3600)}h${Math.floor(t / 60) % 60}m${t % 60}s&autoplay=false`;
-    const fc = status.config.facecam;
-    const win = (x, y, w, h, fw, fl, ft) => `<div class="win" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><iframe src="${src}" allowfullscreen style="width:${fw}px;height:${fw * 9 / 16}px;left:${fl}px;top:${ft}px"></iframe></div>`;
-    if (layout === "crop") {
-      const fw = 384 * 16 / 9; stage.innerHTML = win(0, 0, 216, 384, fw, -(fw - 216) * cx, 0);
-    } else if (layout === "facecam") {
-      const camH = 384 * 700 / 1920, gameH = 384 - camH;
-      const fwCam = 216 / fc.w; const fwGame = gameH * 16 / 9;
-      stage.innerHTML = win(0, 0, 216, camH, fwCam, -fc.x * fwCam, -fc.y * fwCam * 9 / 16) + win(0, camH, 216, gameH, fwGame, -(fwGame - 216) * cx, 0);
-    } else {
-      stage.innerHTML = win(0, (384 - 121.5) / 2 - 16, 216, 121.5, 216, 0, 0);
+    const src = live ? `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}&time=${Math.floor(t / 3600)}h${Math.floor(t / 60) % 60}m${t % 60}s&autoplay=false` : picUrl;
+    const W = 216, H = 384; // pantalla del boceto (1 px = 5 px del video)
+    let wins; // [arriba, alto, rectángulo del original]
+    if (layout === "crop") wins = [[0, H, fr.crop]];
+    else if (layout === "facecam") { const ch = fr.camH / 5; wins = [[0, ch, fr.cam], [ch, H - ch, fr.game]]; }
+    else { const h = W / SRC_AR; wins = [[(H - h) / 2 - 16, h, fr.fg]]; }
+    const key = layout + "|" + src;
+    if (stage.dataset.key !== key) { // solo se recrea si cambia el formato o la fuente (no recarga el reproductor al arrastrar)
+      stage.dataset.key = key;
+      stage.innerHTML = wins.map(() => `<div class="win">${live ? `<iframe src="${esc(src)}" allowfullscreen></iframe>` : `<img class="src" src="${esc(src)}" alt="">`}</div>`).join("");
+    }
+    [...stage.children].forEach((w, i) => {
+      const [top, h, r] = wins[i], fw = W / r.w, fh = fw / SRC_AR;
+      Object.assign(w.style, { left: "0px", top: top + "px", width: W + "px", height: h + "px" });
+      Object.assign(w.firstElementChild.style, { width: fw + "px", height: fh + "px", left: -r.x * fw + "px", top: -r.y * fh + "px" });
+    });
+  };
+
+  // ----- Editor de encuadre: rectángulos sobre un fotograma real del clip -----
+  const ZONES = { crop: [["crop", "Pantalla"]], facecam: [["game", "Juego"], ["cam", "Cámara"]], blur: [["fg", "Video"]] };
+  const HELP = {
+    crop: "El recuadro blanco es lo que se ve en el Short. Arrastralo para moverlo; desde la esquina lo agrandás (alejar) o achicás (zoom).",
+    facecam: "Rojo = tu cámara (va arriba). Blanco = el juego (va abajo). Arrastrá cada recuadro y cambiá su tamaño desde la esquina. Flechas del teclado = ajuste fino.",
+    blur: "El recuadro es lo que se ve en el centro, sobre el fondo desenfocado. Achicalo para hacer zoom y movelo para encuadrar.",
+  };
+  const framer = $(".framer", el), pic = $(".framer-pic", el), img = $("img", pic);
+  let selZone = null, picIdx = 0;
+  const layoutNow = () => $(".f-layout", el).value;
+  const zonesNow = () => ZONES[layoutNow()] || ZONES.blur;
+  const aspectOf = (z) => zoneAspect(z, fr.camH);
+  const drawFramer = () => {
+    if (framer.classList.contains("hidden")) return;
+    const zs = zonesNow();
+    if (!zs.some(([z]) => z === selZone)) selZone = zs[0][0];
+    $(".framer-help", el).textContent = HELP[layoutNow()] || HELP.blur;
+    $(".fsel-name", el).textContent = zs.find(([z]) => z === selZone)[1];
+    framer.querySelectorAll(".camh").forEach((n) => n.classList.toggle("hidden", layoutNow() !== "facecam"));
+    $(".f-camH", el).value = fr.camH;
+    let boxes = [...pic.querySelectorAll(".fz")];
+    if (boxes.map((b) => b.dataset.z).join() !== zs.map(([z]) => z).join()) {
+      boxes.forEach((b) => b.remove());
+      boxes = zs.map(([z, name]) => {
+        const d = document.createElement("div");
+        d.className = "fz" + (z === "cam" ? " cam" : ""); d.dataset.z = z;
+        d.innerHTML = `<span class="lbl">${name}</span><span class="h" title="Arrastrá para cambiar el tamaño"></span>`;
+        pic.appendChild(d); return d;
+      });
+    }
+    for (const b of boxes) {
+      const r = fr[b.dataset.z];
+      Object.assign(b.style, { left: r.x * 100 + "%", top: r.y * 100 + "%", width: r.w * 100 + "%", height: r.h * 100 + "%" });
+      b.classList.toggle("sel", b.dataset.z === selZone);
     }
   };
+  const frameChanged = () => { drawFramer(); updatePreview(); save(); };
+  const loadPic = () => {
+    const s0 = parseT($(".f-start", el).value), e0 = parseT($(".f-end", el).value);
+    const ts = [s0 + Math.min(3, (e0 - s0) / 4), (s0 + e0) / 2, Math.max(s0, e0 - 3)];
+    const ld = $(".framer-loading", el);
+    ld.textContent = "Sacando un fotograma del clip…"; ld.classList.remove("hidden"); img.style.visibility = "hidden";
+    img.onload = () => { ld.classList.add("hidden"); img.style.visibility = ""; picUrl = img.src; layoutStage(); };
+    img.onerror = () => { ld.textContent = "No pude sacar el fotograma (¿ffmpeg instalado? ¿el VOD sigue en Twitch?)."; };
+    img.src = `/api/streams/${vodId}/frame?t=${Math.round(ts[picIdx % ts.length])}`;
+  };
+  $(".act-frame", el).onclick = () => {
+    framer.classList.toggle("hidden");
+    if (framer.classList.contains("hidden")) return;
+    if (!img.getAttribute("src")) loadPic();
+    drawFramer(); framer.focus({ preventScroll: true });
+  };
+  pic.addEventListener("pointerdown", (ev) => {
+    const box = ev.target.closest(".fz"); if (!box) return;
+    ev.preventDefault();
+    const z = box.dataset.z; selZone = z; drawFramer();
+    const b = pic.getBoundingClientRect(), start = { ...fr[z] };
+    const p0 = [(ev.clientX - b.left) / b.width, (ev.clientY - b.top) / b.height];
+    const resizing = ev.target.classList.contains("h");
+    pic.setPointerCapture(ev.pointerId);
+    const move = (e) => {
+      const p = [(e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height];
+      if (resizing) {
+        const k = aspectOf(z) / SRC_AR; // ancho = alto * k (en fracciones del original)
+        const h = Math.max(0.05, p[1] - start.y, (p[0] - start.x) / k);
+        fr[z] = fitRect({ x: start.x, y: start.y, w: h * k, h }, aspectOf(z), "topleft");
+      } else {
+        fr[z] = fitRect({ ...start, x: start.x + p[0] - p0[0], y: start.y + p[1] - p0[1] }, aspectOf(z), "topleft");
+      }
+      drawFramer(); updatePreview();
+    };
+    const up = () => { pic.removeEventListener("pointermove", move); pic.removeEventListener("pointerup", up); save(); };
+    pic.addEventListener("pointermove", move); pic.addEventListener("pointerup", up);
+  });
+  framer.addEventListener("click", async (ev) => {
+    const f = ev.target.closest("[data-f]")?.dataset.f; if (!f) return;
+    const z = selZone, r = fr[z], asp = aspectOf(z);
+    if (f === "cx") fr[z] = { ...r, x: +((1 - r.w) / 2).toFixed(4) };
+    else if (f === "cy") fr[z] = { ...r, y: +((1 - r.h) / 2).toFixed(4) };
+    else if (f === "zin" || f === "zout") { // zoom manteniendo el centro del recuadro
+      const h = Math.min(1, f === "zin" ? r.h * 0.9 : r.h / 0.9), w = h * asp / SRC_AR;
+      fr[z] = fitRect({ x: r.x + r.w / 2 - w / 2, y: r.y + r.h / 2 - h / 2, w, h }, asp, "topleft");
+    }
+    else if (f === "full") fr[z] = fullRect(asp, 0.5);
+    else if (f === "reset") fr = normalizeFrame({ ...fr, [z]: undefined }, { facecam: status.config.facecam, cropX: 0.5 });
+    else if (f === "pic") { picIdx++; return loadPic(); }
+    else if (f === "default") {
+      const facecam = { ...fr.cam, camH: fr.camH };
+      await api("/api/config", { method: "POST", body: { facecam } });
+      status.config.facecam = facecam;
+      return toast("Listo: los clips nuevos usan esta cámara ✅");
+    }
+    frameChanged();
+  });
+  $(".f-camH", el).addEventListener("input", (ev) => {
+    ev.stopPropagation();
+    fr = normalizeFrame({ ...fr, camH: +ev.target.value }, { facecam: status.config.facecam });
+    frameChanged();
+  });
+  framer.addEventListener("keydown", (ev) => {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+    if (!d || ev.target.matches("input,select,textarea")) return;
+    ev.preventDefault();
+    const step = ev.shiftKey ? 0.02 : 0.004, r = fr[selZone];
+    fr[selZone] = fitRect({ ...r, x: r.x + d[0] * step, y: r.y + d[1] * step }, aspectOf(selZone), "topleft");
+    frameChanged();
+  });
   $(".load-preview", el).onclick = (e) => { e.target.remove(); $(".stage", el).dataset.loaded = "1"; layoutStage(); };
 
   // Guardar cambios
@@ -410,7 +529,7 @@ function momentCard(vodId, m) {
   const fields = () => ({
     titulo: $(".f-titulo", el).value, gancho: $(".f-gancho", el).value, descripcion: $(".f-descripcion", el).value,
     start: parseT($(".f-start", el).value), end: parseT($(".f-end", el).value), layout: $(".f-layout", el).value,
-    cropX: +$(".f-cropX", el).value, selected: $(".f-selected", el).checked,
+    frame: fr, selected: $(".f-selected", el).checked,
     hookOn: $(".f-hookOn", el).checked, hookDur: +$(".f-hookDur", el).value, hookY: tx.hookY,
     subsOn: $(".f-subsOn", el).checked, subScale: +$(".f-subScale", el).value, subStyle: $(".f-subStyle", el).value || null, subY: tx.subY,
   });

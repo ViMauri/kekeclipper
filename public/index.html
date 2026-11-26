@@ -66,7 +66,25 @@
               <option value="facecam">Facecam arriba + juego abajo</option>
             </select>
           </label>
-          <label class="cropx">Encuadre <input type="range" class="f-cropX" min="0" max="1" step="0.01" /></label>
+          <button class="act-frame" type="button">📐 Ajustar cámara y encuadre</button>
+        </div>
+        <div class="framer hidden" tabindex="0">
+          <p class="hint framer-help"></p>
+          <div class="framer-pic"><img alt="Fotograma del clip" /><div class="framer-loading">Sacando un fotograma del clip…</div></div>
+          <div class="framer-tools">
+            <span class="fsel">Ajustando: <b class="fsel-name"></b></span>
+            <button type="button" data-f="cx" title="Centrar de izquierda a derecha">↔ Centrar</button>
+            <button type="button" data-f="cy" title="Centrar de arriba a abajo">↕ Centrar</button>
+            <button type="button" data-f="zin" title="Acercar">＋ Zoom</button>
+            <button type="button" data-f="zout" title="Alejar">－ Zoom</button>
+            <button type="button" data-f="full" title="Lo más alejado posible">⤢ Sin zoom</button>
+            <button type="button" data-f="reset">Restablecer</button>
+          </div>
+          <div class="framer-tools">
+            <label class="slider camh">Alto de la cámara en el Short <input type="range" class="f-camH" min="400" max="1100" step="10" /></label>
+            <button type="button" data-f="default" class="camh">📌 Usar esta cámara en todos los clips</button>
+            <button type="button" data-f="pic">🔄 Otro fotograma</button>
+          </div>
         </div>
         <div class="texts">
           <div class="texts-row">

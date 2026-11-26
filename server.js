@@ -11,6 +11,7 @@ import { analyzeVod, loadAnalysis, saveMoments, hasAnalysis } from "./src/analyz
 import { renderClip, buildSummary, ensureSubs } from "./src/produce.js";
 import { getHashtags, refreshHashtags, pickHashtags } from "./src/hashtags.js";
 import { ffmpegAvailable, grabFrame } from "./src/media.js";
+import { normalizeFrame } from "./src/framing.js";
 import { runChecks, runSetupAction, startOllama } from "./src/setup.js";
 import { aiAvailable, aiProvider, webSearchAvailable, checkOllama, ollamaInfo } from "./src/ai.js";
 
@@ -19,6 +20,8 @@ app.use(express.json({ limit: "2mb" }));
 let lastSeen = Date.now();
 app.use("/api", (req, res, next) => { lastSeen = Date.now(); next(); });
 app.use(express.static(path.join(ROOT, "public")));
+// La interfaz usa el mismo cálculo de encuadre que el render
+app.get("/framing.js", (req, res) => res.type("text/javascript").sendFile(path.join(ROOT, "src", "framing.js")));
 
 const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => { console.error(e); res.status(500).json({ error: e.message }); });
 
@@ -101,6 +104,8 @@ app.patch("/api/streams/:vodId/moments/:id", wrap(async (req, res) => {
   const m = moments.find((x) => x.id === Number(req.params.id));
   if (!m) return res.status(404).json({ error: "no existe" });
   for (const k of ["start", "end", "titulo", "gancho", "descripcion", "layout", "cropX", "selected", "hashtags", "subsOn", "subsEdited", "subY", "subScale", "subStyle", "hookOn", "hookDur", "hookY"]) if (k in req.body) m[k] = req.body[k];
+  if (req.body.frame === null) delete m.frame; // vuelve al encuadre por defecto
+  else if (req.body.frame && typeof req.body.frame === "object") m.frame = normalizeFrame(req.body.frame, { facecam: getConfig().facecam, cropX: m.cropX ?? 0.5 });
   if (Array.isArray(req.body.subs)) {
     m.subs = req.body.subs
       .map((s) => ({ start: Number(s.start), end: Number(s.end), text: String(s.text || "").slice(0, 200) }))

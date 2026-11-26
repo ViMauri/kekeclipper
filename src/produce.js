@@ -6,6 +6,7 @@ import { getPlaylists } from "./twitch.js";
 import { readAudio, renderShort } from "./media.js";
 import { transcribe } from "./transcribe.js";
 import { buildAss } from "./subtitles.js";
+import { normalizeFrame } from "./framing.js";
 import { pickHashtags } from "./hashtags.js";
 import { loadAnalysis, saveMoments } from "./analyzer.js";
 
@@ -62,16 +63,18 @@ export async function renderClip(vodId, momentId, ctx) {
       segs = subs.filter((s) => s.end > m.start && s.start < m.end).map((s) => ({ ...s, start: s.start - m.start, end: Math.min(s.end, m.end) - m.start }));
     } catch (e) { ctx.log("Sin subtítulos: " + e.message); }
   }
+  const layout = m.layout || cfg.defaultLayout;
+  const frame = normalizeFrame(m.frame, { facecam: cfg.facecam, cropX: m.cropX ?? 0.5 });
   const assFile = path.join(work, `${base}.ass`);
   const hook = m.hookOn !== false && m.gancho ? m.gancho : null;
   fs.writeFileSync(assFile, buildAss({
-    segs, hook, hookDur: m.hookDur ?? 4, duration: dur, style: m.subStyle || cfg.subtitleStyle, layout: m.layout,
-    subY: m.subY ?? undefined, hookY: m.hookY ?? 250, subScale: m.subScale ?? 100, mode: m.subsEdited ? "line" : "auto",
+    segs, hook, hookDur: m.hookDur ?? 4, duration: dur, style: m.subStyle || cfg.subtitleStyle, layout,
+    subY: m.subY ?? (layout === "facecam" ? frame.camH + 460 : undefined), hookY: m.hookY ?? 250, subScale: m.subScale ?? 100, mode: m.subsEdited ? "line" : "auto",
   }), "utf8");
 
   ctx.progress(0.3, "Renderizando Short 9:16…");
   const outFile = path.join(folder, `${base}.mp4`);
-  await renderShort({ url: pl.source, start: m.start, end: m.end, layout: m.layout || cfg.defaultLayout, facecam: cfg.facecam, cropX: m.cropX ?? 0.5, assFile, outFile, onProgress: (p) => ctx.progress(0.3 + 0.68 * p) });
+  await renderShort({ url: pl.source, start: m.start, end: m.end, layout, frame, assFile, outFile, onProgress: (p) => ctx.progress(0.3 + 0.68 * p) });
 
   const tags = pickHashtags(m.hashtags, "shorts", 12);
   const caption = `${m.titulo}\n\n${m.descripcion || ""}\n\n${tags.join(" ")}`;

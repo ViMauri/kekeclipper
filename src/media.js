@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { OUT_W, OUT_H, normalizeFrame } from "./framing.js";
 
 /**
  * Busca ffmpeg aunque el PATH de esta ventana esté desactualizado
@@ -88,25 +89,31 @@ function run(args, { cwd, onProgress, totalSec } = {}) {
 
 const ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-movflags", "+faststart"];
 
-/** Filtro de video para 9:16 (1080x1920). */
-function verticalFilter(layout, fc, cropX = 0.5) {
+/** Recorte de un rectángulo (fracciones del video original) para ffmpeg. */
+const cropOf = (r) => `crop=iw*${r.w}:ih*${r.h}:iw*${r.x}:ih*${r.y}`;
+
+/**
+ * Filtro de video para 9:16 (1080x1920). `frame` es el encuadre ya normalizado (src/framing.js):
+ * cada zona trae su rectángulo con la proporción justa, así no se deforma nada.
+ */
+function verticalFilter(layout, frame) {
   if (layout === "crop") {
-    return `[0:v]scale=-2:1920,crop=1080:1920:(iw-1080)*${cropX.toFixed(3)}:0,setsar=1,fps=30[v0]`;
+    return `[0:v]${cropOf(frame.crop)},scale=${OUT_W}:${OUT_H},setsar=1,fps=30[v0]`;
   }
   if (layout === "facecam") {
-    const { x, y, w, h } = fc;
+    const camH = frame.camH, gameH = OUT_H - camH;
     return [
       `[0:v]split=2[c][g]`,
-      `[c]crop=iw*${w}:ih*${h}:iw*${x}:ih*${y},scale=1080:700:force_original_aspect_ratio=increase,crop=1080:700[cam]`,
-      `[g]scale=-2:1220,crop=1080:1220:(iw-1080)*${cropX.toFixed(3)}:0[game]`,
+      `[c]${cropOf(frame.cam)},scale=${OUT_W}:${camH}[cam]`,
+      `[g]${cropOf(frame.game)},scale=${OUT_W}:${gameH}[game]`,
       `[cam][game]vstack=inputs=2,setsar=1,fps=30[v0]`,
     ].join(";");
   }
-  // blur: fondo desenfocado + video completo centrado
+  // blur: fondo desenfocado + el video (con el zoom que elijas) centrado
   return [
     `[0:v]split=2[a][b]`,
-    `[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=24:3,eq=brightness=-0.08[bg]`,
-    `[b]scale=1080:-2[fg]`,
+    `[a]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=increase,crop=${OUT_W}:${OUT_H},boxblur=24:3,eq=brightness=-0.08[bg]`,
+    `[b]${cropOf(frame.fg)},scale=${OUT_W}:-2[fg]`,
     `[bg][fg]overlay=(W-w)/2:(H-h)/2-80,setsar=1,fps=30[v0]`,
   ].join(";");
 }
@@ -115,10 +122,10 @@ function verticalFilter(layout, fc, cropX = 0.5) {
  * Renderiza un Short vertical. Solo baja de Twitch el tramo [start, end].
  * assFile: subtítulos .ass (ruta absoluta, se usa nombre relativo para evitar líos de escape en Windows).
  */
-export async function renderShort({ url, start, end, layout = "blur", facecam, cropX = 0.5, assFile, outFile, onProgress }) {
+export async function renderShort({ url, start, end, layout = "blur", frame, assFile, outFile, onProgress }) {
   const dur = Math.max(1, end - start);
   const cwd = path.dirname(assFile || outFile);
-  let fc = verticalFilter(layout, facecam || { x: 0, y: 0, w: 0.28, h: 0.3 }, cropX);
+  let fc = verticalFilter(layout, normalizeFrame(frame));
   if (assFile && fs.existsSync(assFile)) fc += `;[v0]subtitles=${path.basename(assFile)}[v]`;
   else fc += `;[v0]null[v]`;
   const args = [...NET, "-ss", String(start), "-i", url, "-t", String(dur), "-filter_complex", fc, "-map", "[v]", "-map", "0:a?", ...ENC, "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", outFile];
