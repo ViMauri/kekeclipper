@@ -19,7 +19,7 @@ New-Item -ItemType Directory -Force $stage | Out-Null
 $files = git ls-files
 if ($LASTEXITCODE -ne 0) { throw "git ls-files falló" }
 foreach ($f in $files) {
-  if ($f -like "tools/*") { continue }          # herramientas de desarrollo: no hacen falta para usar la app
+  if ($f -like "tools/*" -or $f -like "docs/*") { continue }   # herramientas y capturas del repo: no hacen falta para usar la app
   $dst = Join-Path $stage $f
   New-Item -ItemType Directory -Force (Split-Path -Parent $dst) | Out-Null
   Copy-Item (Join-Path $root $f) $dst
